@@ -1,12 +1,12 @@
 ---
 const { collection } = Astro.props;
 
-export async function createCollection() {
+export async function createPages() {
   return {
-    async data() {
+    async props() {
       const episodes = Astro.fetchContent('./episode/*.md');
       episodes.sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate));
-      return episodes;
+      return {episodes};
     },
     rss: {
       title: 'MF Doomcast',

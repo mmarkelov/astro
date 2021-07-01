@@ -1,29 +1,27 @@
 ---
 const { collection } = Astro.props;
 
-export async function createCollection() {
+export async function createPages() {
   const allPosts = Astro.fetchContent('./post/*.md');
-
   return {
-    routes: allPosts.map((post, i) => {
+    route: `/individual/:slug`,
+    pages: allPosts.map((post, i) => {
         const params = {
           slug: post.url.replace('/post/', ''),
           index: i
         };
         return params;
     }),
-
-    permalink: ({ params }) => `/individual/${params.slug}`,
-
-    async data({ params }) {
-      return [allPosts[params.index]];
+    async props({ params }) {
+      return {post: [allPosts[params.index]]};
     },
-
-    pageSize: Infinity
   };
 }
+
+const { post } = Astro.props;
+const { params } = Astro.request;
 ---
 
-<div id={collection.params.slug}>
-  <h1>{collection.data[0].title}</h1>
+<div id={params.slug}>
+  <h1>{post.title}</h1>
 </div>

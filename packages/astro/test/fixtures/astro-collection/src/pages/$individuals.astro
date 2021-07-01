@@ -1,21 +1,19 @@
 ---
-const { collection } = Astro.props;
+const { data } = Astro.props;
 
-export async function createCollection() {
+export async function createPages() {
   return {
-    async data() {
+    async props() {
       let data = Astro.fetchContent('./post/**/*.md');
       data.sort((a, b) => new Date(b.date) - new Date(a.date));
-      return data;
+      return {data};
     },
-
-    pageSize: 10
   };
 }
 ---
 
 <div id="posts">
-{collection.data.map((post) => (
+{data.map((post) => (
   <article>
     <h1>{post.title}</h1>
     <a href={post.url}>Read more</a>
