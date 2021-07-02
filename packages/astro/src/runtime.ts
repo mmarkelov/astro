@@ -2,6 +2,7 @@ import type { LogOptions } from './logger';
 import type { AstroConfig, CollectionResult, CollectionRSS, CreateCollection, Params, RuntimeMode } from './@types/astro';
 import type { CompileError as ICompileError } from '@astrojs/parser';
 
+import glob from 'tiny-glob';
 import resolve from 'resolve';
 import { existsSync, promises as fs } from 'fs';
 import { fileURLToPath } from 'url';
@@ -25,6 +26,8 @@ import { searchForPage } from './search.js';
 import snowpackExternals from './external.js';
 import { nodeBuiltinsMap } from './node_builtins.js';
 import { ConfigManager } from './config_manager.js';
+import { allPages } from './util';
+import slash from 'slash';
 
 interface RuntimeConfig {
   astroConfig: AstroConfig;
@@ -34,6 +37,7 @@ interface RuntimeConfig {
   snowpackRuntime: SnowpackServerRuntime;
   snowpackConfig: SnowpackConfig;
   configManager: ConfigManager;
+  routeManager: any;
 }
 
 // info needed for collection generation
@@ -63,7 +67,7 @@ configureSnowpackLogger(snowpackLogger);
 
 /** Pass a URL to Astro to resolve and build */
 async function load(config: RuntimeConfig, rawPathname: string | undefined): Promise<LoadResult> {
-  const { logging, snowpackRuntime, snowpack, configManager } = config;
+  const { logging, snowpackRuntime, snowpack, configManager, routeManager } = config;
   const { buildOptions, devOptions } = config.astroConfig;
 
   let origin = buildOptions.site ? new URL(buildOptions.site).origin : `http://localhost:${devOptions.port}`;
@@ -72,7 +76,7 @@ async function load(config: RuntimeConfig, rawPathname: string | undefined): Pro
   const reqPath = decodeURI(fullurl.pathname);
   info(logging, 'access', reqPath);
 
-  const searchResult = searchForPage(fullurl, config.astroConfig);
+  const searchResult = (routeManager as RouteManager).match(fullurl);
   if (searchResult.statusCode === 404) {
     try {
       const result = await snowpack.loadUrl(reqPath);
@@ -442,6 +446,67 @@ async function createSnowpack(astroConfig: AstroConfig, options: CreateSnowpackO
   return { snowpack, snowpackRuntime, snowpackConfig, configManager };
 }
 
+
+type SearchResult =
+  | {
+      statusCode: 200;
+      location: PageLocation;
+      pathname: string;
+      currentPage?: number;
+    }
+  | {
+      statusCode: 301;
+      location: null;
+      pathname: string;
+    }
+  | {
+      statusCode: 404;
+    };
+
+interface PageLocation {
+  fileURL: URL;
+  snowpackURL: string;
+}
+class RouteManager {
+  staticRoutes: Record<string, PageLocation> = {};
+  collections: Record<string, any> = {};
+
+  async load(snowpackRuntime: SnowpackServerRuntime , astroConfig: AstroConfig) {
+    const cwd = fileURLToPath(astroConfig.pages);
+    const files = await glob('**/*.{astro,md}', { cwd, filesOnly: true });
+    for (const f of files) {
+      const pagesPath = astroConfig.pages.pathname.replace(astroConfig.projectRoot.pathname, '');
+      const snowpackURL = `/_astro/${pagesPath}${f}.js`;
+      if (path.basename(f).startsWith('$')) {
+        const mod = await snowpackRuntime.importModule(snowpackURL);
+        const createCollection: CreateCollection = mod.exports.createCollection();
+        this.collections[createCollection.route] = createCollection;
+      } else {
+        const reqURL = '/' + slash(f).replace(/\.(astro|md)$/, '').replace(/index$/, '');
+        this.staticRoutes[reqURL] = {snowpackURL, fileURL: new URL(f, astroConfig.pages)};
+      }
+    }
+    console.log(this.collections, this.staticRoutes);
+    // TODO: hook into snowpack's onFileChanged to stay updated
+  }
+
+  match(req: URL): SearchResult {
+    const reqPath = decodeURI(req.pathname);
+    console.log("MATCH?", reqPath);
+    if (this.staticRoutes[reqPath]) {
+      return {
+        statusCode: 200,
+        location: this.staticRoutes[reqPath],
+        pathname: reqPath,
+      }
+    }
+    return {
+      statusCode: 404
+    };
+    // TODO: check the internal route mapping
+  }
+}
+
 /** Core Astro runtime */
 export async function createRuntime(astroConfig: AstroConfig, { mode, logging }: RuntimeOptions): Promise<AstroRuntime> {
   let snowpack: SnowpackDevServer;
@@ -469,7 +534,10 @@ export async function createRuntime(astroConfig: AstroConfig, { mode, logging }:
     snowpackRuntime,
     snowpackConfig,
     configManager,
+    routeManager: new RouteManager(),
   };
+
+  await runtimeConfig.routeManager.load(snowpackRuntime, astroConfig);
 
   return {
     runtimeConfig,

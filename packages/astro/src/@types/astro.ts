@@ -105,15 +105,13 @@ export interface PageDependencies {
   images: Set<string>;
 }
 
-export interface CreateCollection<T = any> {
-  data: ({ params }: { params: Params }) => T[];
-  routes?: Params[];
-  /** tool for generating current page URL */
-  permalink?: ({ params }: { params: Params }) => string;
-  /** page size */
-  pageSize?: number;
-  /** Generate RSS feed from data() */
-  rss?: CollectionRSS<T>;
+export interface CreateCollection {
+  paginate?: boolean;
+  route: string;
+  data?: (args: {}) => any;
+  params: (args: { data: any }) => any;
+  props: (args: { data: any, params: Params, paginate: (args: { data: any, pageSize?: number }) => any }) => any;
+  rss?: CollectionRSS;
 }
 
 export interface CollectionRSS<T = any> {

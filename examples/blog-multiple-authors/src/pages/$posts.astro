@@ -13,6 +13,7 @@ let canonicalURL = Astro.request.canonicalURL;
 import authorData from '../data/authors.json';
 export function createPages() {
   return {
+    route: `/posts/:page`,
     paginate: true,
     async props({ paginate }) {
       /** filter posts by author, sort by date */
