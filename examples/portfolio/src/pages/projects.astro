@@ -4,19 +4,10 @@ import Footer from '../components/Footer/index.jsx';
 import Nav from '../components/Nav/index.jsx';
 import PortfolioPreview from '../components/PortfolioPreview/index.jsx';
 
-let { projects } = Astro.props;
-export async function createPages() {
-  return {
-    async props() {
-      const projects = Astro.fetchContent('./project/*.md');
-      return {
-        projects: projects
-          .filter(({ published_at }) => !!published_at)
-          .sort((a, b) => new Date(b.published_at) - new Date(a.published_at)),
-      };
-    }
-  }
-}
+const allProjects = Astro.fetchContent('./project/*.md');
+const projects = allProjects
+  .filter(({ published_at }) => !!published_at)
+  .sort((a, b) => new Date(b.published_at) - new Date(a.published_at));
 ---
 
 <html lang="en">

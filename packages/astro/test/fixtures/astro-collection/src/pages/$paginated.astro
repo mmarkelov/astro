@@ -1,8 +1,8 @@
 ---
-export async function createPages() {
+export function createPages() {
   return {
     paginate: true,
-    async data({paginate}) {
+    async props({paginate}) {
       let data = Astro.fetchContent('./post/**/*.md');
       data.sort((a, b) => new Date(b.date) - new Date(a.date));
       return {posts: paginate({data, pageSize: 1})};

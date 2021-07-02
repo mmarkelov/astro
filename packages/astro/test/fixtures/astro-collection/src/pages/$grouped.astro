@@ -1,17 +1,22 @@
 ---
 
-export async function createPages() {
-  const allPosts = Astro.fetchContent('./post/**/*.md');
-  const allAuthors = allPosts.map(p => p.author);
-  const uniqueAuthors = [...new Set(allAuthors)];
+export function createPages() {
   return {
     route: `/grouped/:name`,
-    pages: uniqueAuthors.map(author => {
+    data() {
+      const allPosts = Astro.fetchContent('./post/**/*.md');
+      const allAuthors = allPosts.map(p => p.author);
+      const uniqueAuthors = [...new Set(allAuthors)];
+      return {uniqueAuthors, allPosts};
+    }
+    params({data}) {
+      data.uniqueAuthors.map(author => {
         const params = { name: author };
         return params;
-    }),
-    async props({ params }) {
-        return {posts: allPosts.filter(p => p.author === params.name)}
+      });
+    },
+    async props({ params, data }) {
+      return {posts: data.allPosts.filter(p => p.author === params.name)}
     },
   };
 }

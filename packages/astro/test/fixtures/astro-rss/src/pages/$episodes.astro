@@ -1,7 +1,7 @@
 ---
 const { collection } = Astro.props;
 
-export async function createPages() {
+export function createPages() {
   return {
     async props() {
       const episodes = Astro.fetchContent('./episode/*.md');

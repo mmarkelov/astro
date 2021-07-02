@@ -12,17 +12,22 @@ let canonicalURL = Astro.request.canonicalURL;
 // collection
 import authorData from '../data/authors.json';
 
-export async function createPages() {
-  /** Load posts */
-  let allPosts = Astro.fetchContent('./post/*.md');
-  let allAuthorsUnique = [...new Set(allPosts.map(p => p.author))];
+export function createPages() {
   return {
     paginate: true,
     route: `/author/:author`,
-    pages: allAuthorsUnique.map(author => {author}),
-    async props({ params, paginate }) {
+    data() {
+      /** Load posts */
+      let allPosts = Astro.fetchContent('./post/*.md');
+      let allAuthorsUnique = [...new Set(allPosts.map(p => p.author))];
+      return {allPosts, allAuthorsUnique};
+    },
+    params({data}) {
+      return data.allAuthorsUnique.map(author => {author})
+    },
+    async props({ params, data, paginate }) {
       /** filter posts by author, sort by date */
-      const filteredPosts = allPosts
+      const filteredPosts = data.allPosts
         .filter((post) => post.author === params.author)
         .sort((a, b) => new Date(b.date) - new Date(a.date));
       return {

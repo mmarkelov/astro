@@ -11,7 +11,7 @@ let canonicalURL = Astro.request.canonicalURL;
 
 // collection
 import authorData from '../data/authors.json';
-export async function createPages() {
+export function createPages() {
   return {
     paginate: true,
     async props({ paginate }) {
@@ -22,7 +22,7 @@ export async function createPages() {
         posts: paginate({data: sortedPosts, pageSize: 2}),
       }
     },
-     rss: {
+    rss: {
       title: 'Don’s Blog',
       description: 'An example blog on Astro',
       customData: `<language>en-us</language>`,

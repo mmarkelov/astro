@@ -1,17 +1,22 @@
 ---
 const { collection } = Astro.props;
 
-export async function createPages() {
-  const allPosts = Astro.fetchContent('./post/*.md');
+export function createPages() {
   return {
     route: `/individual/:slug`,
-    pages: allPosts.map((post, i) => {
+    data() {
+      const allPosts = Astro.fetchContent('./post/*.md');
+      return {allPosts};
+    },
+    params({data}) {
+      data.allPosts.map((post, i) => {
         const params = {
           slug: post.url.replace('/post/', ''),
           index: i
         };
         return params;
-    }),
+      });
+    },
     async props({ params }) {
       return {post: [allPosts[params.index]]};
     },
