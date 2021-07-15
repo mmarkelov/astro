@@ -2,7 +2,7 @@ import type { LogOptions } from './logger';
 import type { AstroConfig, CollectionResult, CollectionRSS, CreateCollection, Params, RuntimeMode } from './@types/astro';
 import type { CompileError as ICompileError } from '@astrojs/parser';
 
-import {compile, match} from 'path-to-regexp';
+import { compile, match } from 'path-to-regexp';
 import glob from 'tiny-glob';
 import resolve from 'resolve';
 import { existsSync, promises as fs } from 'fs';
@@ -123,17 +123,17 @@ async function load(config: RuntimeConfig, rawPathname: string | undefined): Pro
           throw new Error(`[createCollection] unknown option: "${key}". (${searchResult.pathname})`);
         }
       }
-      const REQUIRED_KEYS = new Set(['route', 'params', 'props']);
+      const REQUIRED_KEYS = new Set(['route', 'props']);
       for (const key of REQUIRED_KEYS) {
         if (!(createCollection as any)[key]) {
           throw new Error(`[createCollection] missing required option: "${key}". (${searchResult.pathname})`);
         }
       }
-      let { route, params: getParams, props: getProps, paginate: isPaginated, rss: createRSS } = createCollection;
+      let { route, params: getParams = () => ([{}]), props: getProps, paginate: isPaginated, rss: createRSS } = createCollection;
       if (isPaginated && !route.includes(':page')) {
         throw new Error(`[createCollection] when "paginate: true" route must include a "/:page" param. (${searchResult.pathname})`);
       }
-      
+
       // current URL includes a page number
       // we want to match the route regardless of that
 
@@ -144,22 +144,28 @@ async function load(config: RuntimeConfig, rawPathname: string | undefined): Pro
       if (!reqParams) {
         throw new Error(`TODO`);
       }
-      const pageNum = parseInt(reqParams.params.page);
+      const pageNum = parseInt(reqParams.params.page || 1);
       const allParams = getParams();
-      console.log({reqPath});
-      const matchedParams = allParams.find((p: any) => toPath({...p, page: pageNum}) === reqPath);
+      console.log({ reqPath });
+      const matchedParams = allParams.find((p: any) => toPath({...p, page: reqParams.params.page}) === reqPath);
       if (!matchedParams) {
         throw new Error(`[createCollection] no route matched: "${route}". (${searchResult.pathname})`);
       }
-      console.log({matchedParams});
+      console.log({ matchedParams });
 
-      const paginate = (data: any[], args: {pageSize?: number} = {}) => {
-        const {pageSize = Infinity} = args;
+      const paginate = (data: any[], args: { pageSize?: number } = {}) => {
+        const { pageSize = Infinity } = args;
         const start = pageSize === Infinity ? 0 : (pageNum - 1) * pageSize; // currentPage is 1-indexed
         const end = Math.min(start + pageSize, data.length);
         const lastPage = Math.ceil(data.length / pageSize);
-        console.log({data});
-        return { 
+        for (const page of [...Array(lastPage).keys()]) {
+          if (page === 0) {
+            continue;
+          }
+          additionalURLs.add(toPath({ ...matchedParams, page: page + 1 }))
+        }
+        console.log({ data, additionalURLs });
+        return {
           data: data.slice(start, end),
           start,
           end: end - 1,
@@ -171,13 +177,13 @@ async function load(config: RuntimeConfig, rawPathname: string | undefined): Pro
           },
           url: {
             current: reqPath,
-            next: pageNum === lastPage ? undefined : toPath({...matchedParams, page: pageNum + 1}),
-            prev: pageNum === 1 ? undefined : toPath({...matchedParams, page: pageNum - 1}),
+            next: pageNum === lastPage ? undefined : toPath({ ...matchedParams, page: pageNum + 1 }),
+            prev: pageNum === 1 ? undefined : toPath({ ...matchedParams, page: (pageNum - 1 === 1) ? undefined : pageNum - 1 }),
           }
         } as CollectionResult;
       };
-      pageProps = await getProps({params: matchedParams, paginate});
-      console.log({pageProps});
+      pageProps = await getProps({ params: matchedParams, paginate });
+      console.log({ pageProps });
 
       // TODO: handle RSS
       // TODO: paginate
@@ -451,7 +457,6 @@ class RouteManager {
 
   match(req: URL): SearchResult {
     const reqPath = decodeURI(req.pathname);
-    console.log("MATCH?", reqPath);
     if (this.staticRoutes[reqPath]) {
       return {
         statusCode: 200,
@@ -462,7 +467,7 @@ class RouteManager {
     // TODO: match the most correct collection, stripping off a part each time
     let collectionMatchState = reqPath;
     do {
-      console.log(collectionMatchState, this.collections);
+      // console.log(collectionMatchState, this.collections);
       if (this.collections[collectionMatchState]) {
         return {
           statusCode: 200,

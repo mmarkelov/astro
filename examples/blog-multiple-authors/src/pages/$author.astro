@@ -37,8 +37,6 @@ export function createCollection() {
 
 const { posts } = Astro.props;
 const { params } = Astro.request;
-console.log({posts, params});
-// const author = authorData[params.author];
 const author = authorData[posts.data[0].author];
 ---
 

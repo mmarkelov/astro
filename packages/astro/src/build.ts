@@ -59,7 +59,7 @@ export async function build(astroConfig: AstroConfig, logging: LogOptions = defa
   const mode: RuntimeMode = 'production';
   const runtime = await createRuntime(astroConfig, { mode, logging: runtimeLogging });
   const { runtimeConfig } = runtime;
-  const { snowpack } = runtimeConfig;
+  const { snowpackRuntime } = runtimeConfig;
 
   try {
     // 0. erase build directory
@@ -82,8 +82,8 @@ export async function build(astroConfig: AstroConfig, logging: LogOptions = defa
             filepath,
             logging,
             mode,
-            resolvePackageUrl: (pkgName: string) => snowpack.getUrlForPackage(pkgName),
-            runtime,
+            snowpackRuntime,
+            astroRuntime: runtime,
             site: astroConfig.buildOptions.site,
           });
         })
