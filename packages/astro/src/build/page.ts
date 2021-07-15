@@ -85,6 +85,7 @@ export async function buildCollectionPage({ astroConfig, filepath, astroRuntime,
         [...result.collectionInfo.additionalURLs].map(loadCollectionPage)
       );
     }
+    console.log({collectionInfo: result.collectionInfo});
     if (result.collectionInfo?.rss) {
       if (!site) throw new Error(`[${srcURL}] createCollection() tried to generate RSS but "buildOptions.site" missing in astro.config.mjs`);
       let feedURL = routeUrl === '/' ? '/index' : routeUrl;

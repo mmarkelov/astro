@@ -1,44 +1,105 @@
 ---
+import MainHead from '../components/MainHead.astro';
+import Nav from '../components/Nav.astro';
+import PostPreview from '../components/PostPreview.astro';
+import Pagination from '../components/Pagination.astro';
+
+// page
+let title = 'Don’s Blog';
+let description = 'An example blog on Astro';
+let canonicalURL = Astro.request.canonicalURL;
+
+// collection
+import authorData from '../data/authors.json';
 
 export function createPages() {
-  const episodes = Astro.fetchContent('./episode/*.md')
-    .sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate));
+  /** Load posts */
+  let allPosts = Astro.fetchContent('./post/*.md');
   return {
-    route: '/author',
-    async props() {
-      return {episodes};
+    paginate: true,
+    route: `/author/:author/:page?`,
+    params() {
+      let allAuthorsUnique = [...new Set(allPosts.map(p => p.author))];
+      return allAuthorsUnique.map(author => ({author}))
     },
-    rss: {
-      title: 'MF Doomcast',
-      description: 'The podcast about the things you find on a picnic, or at a picnic table',
-      xmlns: {
-        itunes: 'http://www.itunes.com/dtds/podcast-1.0.dtd',
-        content: 'http://purl.org/rss/1.0/modules/content/',
-      },
-      customData: `<language>en-us</language>` +
-        `<itunes:author>MF Doom</itunes:author>`,
-      item: (item) => ({
-        title: item.title,
-        link: item.url,
-        description: item.description,
-        pubDate: item.pubDate + 'Z',
-        customData: `<itunes:episodeType>${item.type}</itunes:episodeType>` +
-          `<itunes:duration>${item.duration}</itunes:duration>` +
-          `<itunes:explicit>${item.explicit || false}</itunes:explicit>`,
-      }),
-    }
-  }
+    async props({ params, paginate }) {
+      /** filter posts by author, sort by date */
+      const filteredPosts = allPosts
+        .filter((post) => post.author === params.author)
+        .sort((a, b) => new Date(b.date) - new Date(a.date));
+      return {
+        posts: paginate(filteredPosts, {pageSize: 1}),
+      }
+    },
+  };
 }
 
-const { episodes } = Astro.props;
+
+const { posts } = Astro.props;
+const { params } = Astro.request;
+const author = authorData[posts.data[0].author];
 ---
 
-<html>
+<html lang="en">
   <head>
-    <title>Podcast Episodes</title>
-    <link rel="alternate" type="application/rss+2.0" href="/feed/episodes.xml" />
+    <title>{title}</title>
+    <MainHead
+      title={title}
+      description={description}
+      image={posts.data[0].image}
+      canonicalURL={canonicalURL}
+      prev={posts.url.prev}
+      next={posts.url.next}
+    />
+
+    <style lang="scss">
+      .title {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 3em;
+        letter-spacing: -0.04em;
+        margin-top: 2rem;
+        margin-bottom: 0;
+      }
+
+      .avatar {
+        width: 1em;
+        height: 1em;
+        margin-right: 0.5em;
+        border-radius: 50%;
+        overflow:hidden;
+
+        &-img {
+          display: block;
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+        }
+      }
+
+      .count {
+        font-size: 1em;
+        display: block;
+        text-align: center;
+      }
+    </style>
   </head>
+
   <body>
-    {episodes.map((ep) => (<li>{ep.title}</li>))}
+    <Nav title={title} />
+
+    <main class="wrapper">
+      <h2 class="title">
+        <div class="avatar"><img class="avatar-img" src={author.image} alt=""}></div>
+        {author.name}
+      </h2>
+      <small class="count">PAGE 1</small>
+      {posts.data.map((post) => <PostPreview post={post} author={author} />)}
+    </main>
+
+    <footer>
+      <Pagination prevUrl={posts.url.prev} nextUrl={posts.url.next} />
+    </footer>
   </body>
 </html>

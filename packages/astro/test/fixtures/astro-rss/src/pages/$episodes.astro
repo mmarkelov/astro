@@ -4,9 +4,10 @@ export function createPages() {
   const episodes = Astro.fetchContent('./episode/*.md')
     .sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate));
   return {
-    route: '/episodes',
-    async props() {
-      return {episodes};
+    paginate: true,
+    route: '/episodes/:page?',
+    async props({paginate}) {
+      return {episodes: paginate(episodes)};
     },
     rss: {
       title: 'MF Doomcast',
@@ -39,6 +40,6 @@ const { episodes } = Astro.props;
     <link rel="alternate" type="application/rss+2.0" href="/feed/episodes.xml" />
   </head>
   <body>
-    {episodes.map((ep) => (<li>{ep.title}</li>))}
+    {episodes.data.map((ep) => (<li>{ep.title}</li>))}
   </body>
 </html>

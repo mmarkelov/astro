@@ -133,10 +133,9 @@ async function load(config: RuntimeConfig, rawPathname: string | undefined): Pro
         }
       }
       let { route, params: getParams = () => ([{}]), props: getProps, paginate: isPaginated, rss: createRSS } = pageCollection;
-      if (isPaginated && !route.includes(':page')) {
-        throw new Error(`[createPages] when "paginate: true" route must include a "/:page" param. (${searchResult.pathname})`);
+      if (isPaginated && !route.includes(':page?')) {
+        throw new Error(`[createPages] when "paginate: true" route must include a "/:page?" param. (${searchResult.pathname})`);
       }
-
       // current URL includes a page number
       // we want to match the route regardless of that
 
@@ -157,6 +156,13 @@ async function load(config: RuntimeConfig, rawPathname: string | undefined): Pro
       console.log({ matchedParams });
 
       const paginate = (data: any[], args: { pageSize?: number } = {}) => {
+        // handle RSS
+        if (createRSS) {
+          rss = {
+            ...createRSS,
+            data: [...data] as any,
+          };
+        }
         const { pageSize = Infinity } = args;
         const start = pageSize === Infinity ? 0 : (pageNum - 1) * pageSize; // currentPage is 1-indexed
         const end = Math.min(start + pageSize, data.length);
