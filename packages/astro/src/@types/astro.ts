@@ -194,3 +194,19 @@ export interface Renderer {
     html: string;
   }>;
 }
+
+export interface RenderOptions {
+  request: {
+    url: URL;
+    canonicalURL: URL;
+  };
+  children: any[];
+  props: Record<string, any>;
+  css: string[];
+}
+
+export interface SSRModule {
+  css?: string | string[];
+  createCollection(): Promise<CreateCollection>;
+  render(options: RenderOptions): Promise<string>;
+}

@@ -1,5 +1,5 @@
 import type { AstroConfig, BuildOutput, RuntimeMode } from '../@types/astro';
-import type { AstroRuntime, LoadResult } from '../runtime';
+import type { AstroRuntime, LoadResult } from '../runtime/index.js';
 import type { LogOptions } from '../logger';
 import path from 'path';
 import { generateRSS } from './rss.js';
@@ -11,7 +11,6 @@ interface PageBuildOptions {
   logging: LogOptions;
   filepath: URL;
   mode: RuntimeMode;
-  resolvePackageUrl: (s: string) => Promise<string>;
   runtime: AstroRuntime;
   site?: string;
 }
