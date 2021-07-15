@@ -17,7 +17,7 @@ export function createCollection() {
   let allPosts = Astro.fetchContent('./post/*.md');
   return {
     paginate: true,
-    route: `/author/:author/:page`,
+    route: `/author/:author/:page?`,
     params() {
       let allAuthorsUnique = [...new Set(allPosts.map(p => p.author))];
       return allAuthorsUnique.map(author => ({author}))
@@ -28,7 +28,7 @@ export function createCollection() {
         .filter((post) => post.author === params.author)
         .sort((a, b) => new Date(b.date) - new Date(a.date));
       return {
-        posts: paginate(filteredPosts, {pageSize: 3}),
+        posts: paginate(filteredPosts, {pageSize: 1}),
       }
     },
   };

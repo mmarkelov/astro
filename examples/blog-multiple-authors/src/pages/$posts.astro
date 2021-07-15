@@ -11,16 +11,16 @@ let canonicalURL = Astro.request.canonicalURL;
 
 // collection
 import authorData from '../data/authors.json';
-export function createPages() {
+export function createCollection() {
   return {
-    route: `/posts/:page`,
+    route: `/posts/:page?`,
     paginate: true,
     async props({ paginate }) {
       /** filter posts by author, sort by date */
       const allPosts = Astro.fetchContent('./post/*.md');
       const sortedPosts = allPosts.sort((a, b) => new Date(b.date) - new Date(a.date));
       return {
-        posts: paginate({data: sortedPosts, pageSize: 2}),
+        posts: paginate(sortedPosts, {pageSize: 2}),
       }
     },
     rss: {
@@ -74,7 +74,7 @@ let { posts } = Astro.props;
 
     <main class="wrapper">
       <h2 class="title">All Posts</h2>
-      <small class="count">{posts.page.start + 1}–{posts.page.end + 1} of {posts.page.total}</small>
+      <small class="count">{posts.start + 1}–{posts.end + 1} of {posts.total}</small>
       {posts.data.map((post) => <PostPreview post={post} author={authorData[post.author]} />)}
     </main>
 
