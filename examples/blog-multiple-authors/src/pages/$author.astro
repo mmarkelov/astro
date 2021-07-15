@@ -16,29 +16,30 @@ export function createCollection() {
   /** Load posts */
   let allPosts = Astro.fetchContent('./post/*.md');
   return {
-    // paginate: true,
-    route: `/author/:author`,
+    paginate: true,
+    route: `/author/:author/:page`,
     params() {
       let allAuthorsUnique = [...new Set(allPosts.map(p => p.author))];
       return allAuthorsUnique.map(author => ({author}))
     },
-    async props({ params }) {
+    async props({ params, paginate }) {
       /** filter posts by author, sort by date */
       const filteredPosts = allPosts
         .filter((post) => post.author === params.author)
         .sort((a, b) => new Date(b.date) - new Date(a.date));
       return {
-        posts: filteredPosts,
+        posts: paginate(filteredPosts, {pageSize: 3}),
       }
     },
   };
 }
 
 
-let { posts } = Astro.props;
+const { posts } = Astro.props;
 const { params } = Astro.request;
+console.log({posts, params});
 // const author = authorData[params.author];
-const author = authorData[posts[0].author];
+const author = authorData[posts.data[0].author];
 ---
 
 <html lang="en">
@@ -47,10 +48,10 @@ const author = authorData[posts[0].author];
     <MainHead
       title={title}
       description={description}
-      image={posts[0].image}
+      image={posts.data[0].image}
       canonicalURL={canonicalURL}
-      prev={'/PREV'}
-      next={'/NEXT'}
+      prev={posts.url.prev}
+      next={posts.url.next}
     />
 
     <style lang="scss">
@@ -96,11 +97,11 @@ const author = authorData[posts[0].author];
         {author.name}
       </h2>
       <small class="count">PAGE 1</small>
-      {posts.map((post) => <PostPreview post={post} author={author} />)}
+      {posts.data.map((post) => <PostPreview post={post} author={author} />)}
     </main>
 
     <footer>
-      <Pagination prevUrl={'/PREV'} nextUrl={'/NEXT'} />
+      <Pagination prevUrl={posts.url.prev} nextUrl={posts.url.next} />
     </footer>
   </body>
 </html>

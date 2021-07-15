@@ -108,9 +108,8 @@ export interface PageDependencies {
 export interface CreateCollection {
   paginate?: boolean;
   route: string;
-  data?: (args: {}) => any;
-  params: (args: { data: any }) => any;
-  props: (args: { data: any, params: Params, paginate: (args: { data: any, pageSize?: number }) => any }) => any;
+  params: () => any;
+  props: (args: { params: Params, paginate?: (data: any[], args?: { pageSize?: number }) => any }) => any | Promise<any>;
   rss?: CollectionRSS;
 }
 
@@ -161,12 +160,10 @@ export interface CollectionResult<T = any> {
     /** url of the current page */
     current: string;
     /** url of the previous page (if there is one) */
-    prev?: string;
+    prev: string | undefined;
     /** url of the next page (if there is one) */
-    next?: string;
+    next: string | undefined;
   };
-  /** Matched parameters, if any */
-  params: Params;
 }
 
 export interface ComponentInfo {

@@ -2,6 +2,7 @@ import type { LogOptions } from './logger';
 import type { AstroConfig, CollectionResult, CollectionRSS, CreateCollection, Params, RuntimeMode } from './@types/astro';
 import type { CompileError as ICompileError } from '@astrojs/parser';
 
+import {compile, match} from 'path-to-regexp';
 import glob from 'tiny-glob';
 import resolve from 'resolve';
 import { existsSync, promises as fs } from 'fs';
@@ -22,7 +23,6 @@ const { CompileError } = parser;
 import { canonicalURL, getSrcPath, stopTimer } from './build/util.js';
 import { debug, info } from './logger.js';
 import { configureSnowpackLogger } from './snowpack-logger.js';
-import { searchForPage } from './search.js';
 import snowpackExternals from './external.js';
 import { nodeBuiltinsMap } from './node_builtins.js';
 import { ConfigManager } from './config_manager.js';
@@ -112,115 +112,76 @@ async function load(config: RuntimeConfig, rawPathname: string | undefined): Pro
     debug(logging, 'resolve', `${reqPath} -> ${snowpackURL}`);
 
     // handle collection
-    let collection = {} as CollectionResult;
+    let pageProps = {} as Record<string, any>;
     let additionalURLs = new Set<string>();
 
     if (mod.exports.createCollection) {
       const createCollection: CreateCollection = await mod.exports.createCollection();
-      const VALID_KEYS = new Set(['data', 'routes', 'permalink', 'pageSize', 'rss']);
+      const VALID_KEYS = new Set(['route', 'params', 'props', 'paginate', 'rss']);
       for (const key of Object.keys(createCollection)) {
         if (!VALID_KEYS.has(key)) {
-          throw new Error(`[createCollection] unknown option: "${key}". Expected one of ${[...VALID_KEYS].join(', ')}.`);
+          throw new Error(`[createCollection] unknown option: "${key}". (${searchResult.pathname})`);
         }
       }
-      let { data: loadData, routes, permalink, pageSize, rss: createRSS } = createCollection;
-      if (!loadData) throw new Error(`[createCollection] must return \`data()\` function to create a collection.`);
-      if (!pageSize) pageSize = 25; // can’t be 0
-      let currentParams: Params = {};
-
-      // params
-      if (routes || permalink) {
-        if (!routes) throw new Error('[createCollection] `permalink` requires `routes` as well.');
-        if (!permalink) throw new Error('[createCollection] `routes` requires `permalink` as well.');
-
-        let requestedParams = routes.find((p) => {
-          const baseURL = (permalink as any)({ params: p });
-          additionalURLs.add(baseURL);
-          return baseURL === reqPath || `${baseURL}/${searchResult.currentPage || 1}` === reqPath;
-        });
-        if (requestedParams) {
-          currentParams = requestedParams;
-          collection.params = requestedParams;
+      const REQUIRED_KEYS = new Set(['route', 'params', 'props']);
+      for (const key of REQUIRED_KEYS) {
+        if (!(createCollection as any)[key]) {
+          throw new Error(`[createCollection] missing required option: "${key}". (${searchResult.pathname})`);
         }
       }
-
-      let data: any[] = await loadData({ params: currentParams });
-      if (!data) throw new Error(`[createCollection] \`data()\` returned nothing (empty data)"`);
-      if (!Array.isArray(data)) data = [data]; // note: this is supposed to be a little friendlier to the user, but should we error out instead?
-
-      // handle RSS
-      if (createRSS) {
-        rss = {
-          ...createRSS,
-          data: [...data] as any,
-        };
+      let { route, params: getParams, props: getProps, paginate: isPaginated, rss: createRSS } = createCollection;
+      if (isPaginated && !route.includes(':page')) {
+        throw new Error(`[createCollection] when "paginate: true" route must include a "/:page" param. (${searchResult.pathname})`);
       }
+      
+      // current URL includes a page number
+      // we want to match the route regardless of that
 
-      collection.start = 0;
-      collection.end = data.length - 1;
-      collection.total = data.length;
-      collection.page = { current: 1, size: pageSize, last: 1 };
-      collection.url = { current: reqPath };
+      // call params to create all routes, match against current
+      const reqToParams = match<any>(route);
+      const toPath = compile(route);
+      const reqParams = reqToParams(reqPath);
+      if (!reqParams) {
+        throw new Error(`TODO`);
+      }
+      const pageNum = parseInt(reqParams.params.page);
+      const allParams = getParams();
+      console.log({reqPath});
+      const matchedParams = allParams.find((p: any) => toPath({...p, page: pageNum}) === reqPath);
+      if (!matchedParams) {
+        throw new Error(`[createCollection] no route matched: "${route}". (${searchResult.pathname})`);
+      }
+      console.log({matchedParams});
 
-      // paginate
-      if (searchResult.currentPage) {
-        const start = pageSize === Infinity ? 0 : (searchResult.currentPage - 1) * pageSize; // currentPage is 1-indexed
+      const paginate = (data: any[], args: {pageSize?: number} = {}) => {
+        const {pageSize = Infinity} = args;
+        const start = pageSize === Infinity ? 0 : (pageNum - 1) * pageSize; // currentPage is 1-indexed
         const end = Math.min(start + pageSize, data.length);
-
-        collection.start = start;
-        collection.end = end - 1;
-        collection.page.current = searchResult.currentPage;
-        collection.page.last = Math.ceil(data.length / pageSize);
-        // TODO: fix the .replace() hack
-        if (end < data.length) {
-          collection.url.next = collection.url.current.replace(/(\/\d+)?$/, `/${searchResult.currentPage + 1}`);
-        }
-        if (searchResult.currentPage > 1) {
-          collection.url.prev = collection.url.current
-            .replace(/\d+$/, `${searchResult.currentPage - 1 || 1}`) // update page #
-            .replace(/\/1$/, ''); // if end is `/1`, then just omit
-        }
-
-        // from page 2 to the end, add all pages as additional URLs (needed for build)
-        for (let n = 1; n <= collection.page.last; n++) {
-          if (additionalURLs.size) {
-            // if this is a param-based collection, paginate all params
-            additionalURLs.forEach((url) => {
-              additionalURLs.add(url.replace(/(\/\d+)?$/, `/${n}`));
-            });
-          } else {
-            // if this has no params, simply add page
-            additionalURLs.add(reqPath.replace(/(\/\d+)?$/, `/${n}`));
+        const lastPage = Math.ceil(data.length / pageSize);
+        console.log({data});
+        return { 
+          data: data.slice(start, end),
+          start,
+          end: end - 1,
+          total: data.length,
+          page: {
+            size: pageSize,
+            current: pageNum,
+            last: lastPage,
+          },
+          url: {
+            current: reqPath,
+            next: pageNum === lastPage ? undefined : toPath({...matchedParams, page: pageNum + 1}),
+            prev: pageNum === 1 ? undefined : toPath({...matchedParams, page: pageNum - 1}),
           }
-        }
+        } as CollectionResult;
+      };
+      pageProps = await getProps({params: matchedParams, paginate});
+      console.log({pageProps});
 
-        data = data.slice(start, end);
-      } else if (createCollection.pageSize) {
-        // TODO: fix bug where redirect doesn’t happen
-        // This happens because a pageSize is set, but the user isn’t on a paginated route. Redirect:
-        return {
-          statusCode: 301,
-          location: reqPath + '/1',
-          collectionInfo: {
-            additionalURLs,
-            rss: rss.data ? rss : undefined,
-          },
-        };
-      }
-
-      // if we’ve paginated too far, this is a 404
-      if (!data.length) {
-        return {
-          statusCode: 404,
-          error: new Error('Not Found'),
-          collectionInfo: {
-            additionalURLs,
-            rss: rss.data ? rss : undefined,
-          },
-        };
-      }
-
-      collection.data = data;
+      // TODO: handle RSS
+      // TODO: paginate
+      // TODO: accessory URLs
     }
 
     const requestURL = new URL(fullurl.toString());
@@ -238,7 +199,7 @@ async function load(config: RuntimeConfig, rawPathname: string | undefined): Pro
         canonicalURL: canonicalURL(requestURL.pathname, requestURL.origin),
       },
       children: [],
-      props: Object.keys(collection).length > 0 ? { collection } : {},
+      props: pageProps,
       css: Array.isArray(mod.css) ? mod.css : typeof mod.css === 'string' ? [mod.css] : [],
     })) as string;
 
@@ -449,19 +410,18 @@ async function createSnowpack(astroConfig: AstroConfig, options: CreateSnowpackO
 
 type SearchResult =
   | {
-      statusCode: 200;
-      location: PageLocation;
-      pathname: string;
-      currentPage?: number;
-    }
+    statusCode: 200;
+    location: PageLocation;
+    pathname: string;
+  }
   | {
-      statusCode: 301;
-      location: null;
-      pathname: string;
-    }
+    statusCode: 301;
+    location: null;
+    pathname: string;
+  }
   | {
-      statusCode: 404;
-    };
+    statusCode: 404;
+  };
 
 interface PageLocation {
   fileURL: URL;
@@ -469,24 +429,23 @@ interface PageLocation {
 }
 class RouteManager {
   staticRoutes: Record<string, PageLocation> = {};
-  collections: Record<string, any> = {};
+  collections: Record<string, PageLocation> = {};
 
-  async load(snowpackRuntime: SnowpackServerRuntime , astroConfig: AstroConfig) {
+  async load(snowpackRuntime: SnowpackServerRuntime, astroConfig: AstroConfig) {
     const cwd = fileURLToPath(astroConfig.pages);
     const files = await glob('**/*.{astro,md}', { cwd, filesOnly: true });
     for (const f of files) {
       const pagesPath = astroConfig.pages.pathname.replace(astroConfig.projectRoot.pathname, '');
       const snowpackURL = `/_astro/${pagesPath}${f}.js`;
       if (path.basename(f).startsWith('$')) {
-        const mod = await snowpackRuntime.importModule(snowpackURL);
-        const createCollection: CreateCollection = mod.exports.createCollection();
-        this.collections[createCollection.route] = createCollection;
+        const reqURL = '/' + slash(f).replace(/\.(astro|md)$/, '').replace(/(^|[\/])\$/, '$1').replace(/index$/, '');
+        this.collections[reqURL] = { snowpackURL, fileURL: new URL(f, astroConfig.pages) };
       } else {
         const reqURL = '/' + slash(f).replace(/\.(astro|md)$/, '').replace(/index$/, '');
-        this.staticRoutes[reqURL] = {snowpackURL, fileURL: new URL(f, astroConfig.pages)};
+        this.staticRoutes[reqURL] = { snowpackURL, fileURL: new URL(f, astroConfig.pages) };
       }
     }
-    console.log(this.collections, this.staticRoutes);
+    // console.log(this.collections, this.staticRoutes);
     // TODO: hook into snowpack's onFileChanged to stay updated
   }
 
@@ -500,6 +459,19 @@ class RouteManager {
         pathname: reqPath,
       }
     }
+    // TODO: match the most correct collection, stripping off a part each time
+    let collectionMatchState = reqPath;
+    do {
+      console.log(collectionMatchState, this.collections);
+      if (this.collections[collectionMatchState]) {
+        return {
+          statusCode: 200,
+          location: this.collections[collectionMatchState],
+          pathname: reqPath,
+        }
+      }
+      collectionMatchState = collectionMatchState.substring(0, collectionMatchState.lastIndexOf('/'))
+    } while (collectionMatchState.length > 0);
     return {
       statusCode: 404
     };
