@@ -1,25 +1,24 @@
 ---
+const { collection } = Astro.props;
 
-export function createPages() {
+export function createCollection() {
   return {
-    paginate: true,
-    async props({paginate}) {
+    async data() {
       const data = Astro.fetchContent('./post/*.md');
-      return {posts: paginate({data, pageSize: 1});
+      return data;
     },
+    pageSize: 1,
   };
 }
-const { posts } = Astro.props;
-const { params, canonicalURL} = Astro.request;
 ---
 
 <html>
   <head>
     <title>All Posts</title>
-    <link rel="canonical" href={canonicalURL.href} />
+    <link rel="canonical" href={Astro.request.canonicalURL.href} />
   </head>
   <body>
-    {posts.data.map((data) => (
+    {collection.data.map((data) => (
       <div>
         <h1>{data.title}</h1>
         <a href={data.url}>Read</a>

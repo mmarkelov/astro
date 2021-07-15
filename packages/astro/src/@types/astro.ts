@@ -60,7 +60,7 @@ export interface TransformResult {
   html: string;
   css?: string;
   /** If this page exports a collection, the JS to be executed as a string */
-  createCollection?: string;
+  createPages?: string;
   hasCustomElements: boolean;
   customElementCandidates: Map<string, string>;
 }
@@ -105,7 +105,7 @@ export interface PageDependencies {
   images: Set<string>;
 }
 
-export interface CreateCollection {
+export interface CreatePagesCollection {
   paginate?: boolean;
   route: string;
   params: () => any;

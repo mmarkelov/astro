@@ -1,5 +1,5 @@
 import type { LogOptions } from './logger';
-import type { AstroConfig, CollectionResult, CollectionRSS, CreateCollection, Params, RuntimeMode } from './@types/astro';
+import type { AstroConfig, CollectionResult, CollectionRSS, CreatePagesCollection, Params, RuntimeMode } from './@types/astro';
 import type { CompileError as ICompileError } from '@astrojs/parser';
 
 import { compile, match } from 'path-to-regexp';
@@ -116,22 +116,25 @@ async function load(config: RuntimeConfig, rawPathname: string | undefined): Pro
     let additionalURLs = new Set<string>();
 
     if (mod.exports.createCollection) {
-      const createCollection: CreateCollection = await mod.exports.createCollection();
+      throw new Error(`[deprecated] createCollection is now createPages(). The API has changed.`);
+    }
+      if (mod.exports.createPages) {
+      const pageCollection: CreatePagesCollection = await mod.exports.createPages();
       const VALID_KEYS = new Set(['route', 'params', 'props', 'paginate', 'rss']);
-      for (const key of Object.keys(createCollection)) {
+      for (const key of Object.keys(pageCollection)) {
         if (!VALID_KEYS.has(key)) {
-          throw new Error(`[createCollection] unknown option: "${key}". (${searchResult.pathname})`);
+          throw new Error(`[createPages] unknown option: "${key}". (${searchResult.pathname})`);
         }
       }
       const REQUIRED_KEYS = new Set(['route', 'props']);
       for (const key of REQUIRED_KEYS) {
-        if (!(createCollection as any)[key]) {
-          throw new Error(`[createCollection] missing required option: "${key}". (${searchResult.pathname})`);
+        if (!(pageCollection as any)[key]) {
+          throw new Error(`[createPages] missing required option: "${key}". (${searchResult.pathname})`);
         }
       }
-      let { route, params: getParams = () => ([{}]), props: getProps, paginate: isPaginated, rss: createRSS } = createCollection;
+      let { route, params: getParams = () => ([{}]), props: getProps, paginate: isPaginated, rss: createRSS } = pageCollection;
       if (isPaginated && !route.includes(':page')) {
-        throw new Error(`[createCollection] when "paginate: true" route must include a "/:page" param. (${searchResult.pathname})`);
+        throw new Error(`[createPages] when "paginate: true" route must include a "/:page" param. (${searchResult.pathname})`);
       }
 
       // current URL includes a page number

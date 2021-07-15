@@ -7,7 +7,9 @@ export async function createCollection() {
       let data = Astro.fetchContent('./post/**/*.md');
       data.sort((a, b) => new Date(b.date) - new Date(a.date));
       return data;
-    }
+    },
+
+    pageSize: 10
   };
 }
 ---
@@ -20,8 +22,3 @@ export async function createCollection() {
   </article>
 ))}
 </div>
-
-<nav>
-  {collection.url.prev && <a id="prev-page" href={collection.url.prev}>Previous page</a>}
-  {collection.url.next && <a id="next-page" href={collection.url.next}>Next page</a>}
-</nav>

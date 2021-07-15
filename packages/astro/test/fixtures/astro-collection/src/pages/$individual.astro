@@ -1,32 +1,29 @@
 ---
 const { collection } = Astro.props;
 
-export function createPages() {
+export async function createCollection() {
+  const allPosts = Astro.fetchContent('./post/*.md');
+
   return {
-    route: `/individual/:slug`,
-    data() {
-      const allPosts = Astro.fetchContent('./post/*.md');
-      return {allPosts};
-    },
-    params({data}) {
-      data.allPosts.map((post, i) => {
+    routes: allPosts.map((post, i) => {
         const params = {
           slug: post.url.replace('/post/', ''),
           index: i
         };
         return params;
-      });
+    }),
+
+    permalink: ({ params }) => `/individual/${params.slug}`,
+
+    async data({ params }) {
+      return [allPosts[params.index]];
     },
-    async props({ params }) {
-      return {post: [allPosts[params.index]]};
-    },
+
+    pageSize: Infinity
   };
 }
-
-const { post } = Astro.props;
-const { params } = Astro.request;
 ---
 
-<div id={params.slug}>
-  <h1>{post.title}</h1>
+<div id={collection.params.slug}>
+  <h1>{collection.data[0].title}</h1>
 </div>

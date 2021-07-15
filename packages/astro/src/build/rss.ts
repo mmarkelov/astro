@@ -2,7 +2,7 @@ import type { CollectionRSS } from '../@types/astro';
 import parser from 'fast-xml-parser';
 import { canonicalURL } from './util.js';
 
-/** Validates createCollection.rss */
+/** Validates createPages.rss */
 export function validateRSS(rss: CollectionRSS, srcFile: string): void {
   if (!rss.title) throw new Error(`[${srcFile}] rss.title required`);
   if (!rss.description) throw new Error(`[${srcFile}] rss.description required`);

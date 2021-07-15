@@ -12,7 +12,7 @@ let canonicalURL = Astro.request.canonicalURL;
 // collection
 import authorData from '../data/authors.json';
 
-export function createCollection() {
+export function createPages() {
   /** Load posts */
   let allPosts = Astro.fetchContent('./post/*.md');
   return {

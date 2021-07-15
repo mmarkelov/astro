@@ -1,23 +1,24 @@
 ---
+const { collection } = Astro.props;
 
-export function createPages() {
+export async function createCollection() {
+  const data = await Promise.all([
+    fetch('https://api.skypack.dev/v1/package/canvas-confetti').then((res) => res.json()),
+    fetch('https://api.skypack.dev/v1/package/preact').then((res) => res.json()),
+    fetch('https://api.skypack.dev/v1/package/svelte').then((res) => res.json()),
+  ]);
+
   return {
-    async props() {
-      const data = await Promise.all([
-        fetch('https://api.skypack.dev/v1/package/canvas-confetti').then((res) => res.json()),
-        fetch('https://api.skypack.dev/v1/package/preact').then((res) => res.json()),
-        fetch('https://api.skypack.dev/v1/package/svelte').then((res) => res.json()),
-      ]);
-      return {data};
+    async data() {
+      return data;
     }
   }
 }
 
-const { data } = Astro.props;
 ---
 
 <div>
-  {data.map((pkg) => (
+  {collection.data.map((pkg) => (
     <div id={`pkg-${pkg.name}`}>{pkg.name}</div>
    ))}
 </div>

@@ -1,4 +1,4 @@
-import type { AstroConfig, BuildOutput, CreateCollection, RuntimeMode } from '../@types/astro';
+import type { AstroConfig, BuildOutput, CreatePagesCollection, RuntimeMode } from '../@types/astro';
 import type { AstroRuntime, LoadResult } from '../runtime';
 import type { LogOptions } from '../logger';
 import type { ServerRuntime as SnowpackServerRuntime } from 'snowpack';
@@ -33,12 +33,15 @@ export async function buildCollectionPage({ astroConfig, filepath, astroRuntime,
   console.log({ snowpackURL });
   const mod = await snowpackRuntime.importModule(snowpackURL);
   console.log({ mod });
-  if (!mod.exports.createCollection) {
+  if (mod.exports.createCollection) {
+    throw new Error(`[deprecated] createCollection is now createPages(). The API has changed.`);
+  }
+  if (!mod.exports.createPages) {
     throw new Error("AHH");
   }
 
-  const createCollection: CreateCollection = await mod.exports.createCollection();
-  let { route, params: getParams = () => ([{}]) } = createCollection;
+  const pageCollection: CreatePagesCollection = await mod.exports.createPages();
+  let { route, params: getParams = () => ([{}]) } = pageCollection;
   const toPath = compile(route);
   const allParams = getParams();
   const allRoutes: string[] = allParams.map((p: any) => toPath(p));
@@ -71,7 +74,7 @@ export async function buildCollectionPage({ astroConfig, filepath, astroRuntime,
       throw new Error((result as any).error);
     }
     if (result.statusCode === 200 && !result.collectionInfo) {
-      throw new Error(`[${srcURL}]: Collection page must export createCollection() function`);
+      throw new Error(`[${srcURL}]: Collection page must export createPages() function`);
     }
 
     // note: for pages that require params (/tag/:tag), we will get a 404 but will still get back collectionInfo that tell us what the URLs should be

@@ -11,7 +11,7 @@ let canonicalURL = Astro.request.canonicalURL;
 
 // collection
 import authorData from '../data/authors.json';
-export function createCollection() {
+export function createPages() {
   return {
     route: `/posts/:page?`,
     paginate: true,

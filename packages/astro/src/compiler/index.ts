@@ -150,7 +150,7 @@ async function __render(props, ...children) {
 }
 export default { isAstroComponent: true, __render };
 
-${result.createCollection || ''}
+${result.createPages || ''}
 
 // \`__renderPage()\`: Render the contents of the Astro module as a page. This is a special flow,
 // triggered by loading a component directly by URL.
