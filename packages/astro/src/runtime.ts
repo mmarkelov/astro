@@ -152,7 +152,7 @@ async function load(config: RuntimeConfig, rawPathname: string | undefined): Pro
       console.log({ reqPath });
       const matchedParams = allParams.find((p: any) => toPath({...p, page: reqParams.params.page}) === reqPath);
       if (!matchedParams) {
-        throw new Error(`[createCollection] no route matched: "${route}". (${searchResult.pathname})`);
+        throw new Error(`[createPages] no route matched: "${route}". (${searchResult.pathname})`);
       }
       console.log({ matchedParams });
 
